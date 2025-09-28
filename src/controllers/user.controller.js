@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
@@ -10,7 +10,7 @@ const generateAccessAndRefreshToken = async (userId) => {
     const user = await User.findById(userId);
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
-    
+
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
@@ -113,58 +113,147 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-const logoutUser = asyncHandler(async(req,res) => {
-   await User.findByIdAndUpdate(
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
-        refreshToken: undefined
-      }
+        refreshToken: undefined,
+      },
     },
     {
-      new: true
+      new: true,
     }
-   );
-     const options = {
+  );
+  const options = {
     httpOnly: true,
     secure: true,
   };
   return res
-  .status(200)
-  .clearCookie("accessToken", options)
-  .clearCookie("refreshToken",options)
-  .json(new ApiResponse(200, {}, "User Logged Out successfully"))
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User Logged Out successfully"));
 });
 
-const refreshAccessToken = asyncHandler(async (req,res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-  if(!incomingRefreshToken) throw new ApiError(401,"Unauthorized request");
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+  if (!incomingRefreshToken) throw new ApiError(401, "Unauthorized request");
 
   try {
-    const decodedToken = jwt.verify(incomingRefreshToken,process.env.REFRESH_TOKEN_SECRET);
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
     const user = await User.findById(decodedToken?._id);
-    if(!user)
-      throw new ApiError(401, 'Invalid refresh token');
-    if(user.refreshToken !== incomingRefreshToken)
-    throw new ApiError(401, 'token expired or used');
+    if (!user) throw new ApiError(401, "Invalid refresh token");
+    if (user.refreshToken !== incomingRefreshToken)
+      throw new ApiError(401, "token expired or used");
 
     const options = {
       httpOnly: true,
-      secure: true
-    }
+      secure: true,
+    };
 
-     const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshToken(
-    user._id
-  );
-  res
-  .status(200)
-  .cookie("accessToken", accessToken, options)
-  .cookie("refreshToken", newRefreshToken, options)
-  .json(200,{accessToken,refreshToken:newRefreshToken}),
-  "access token refreshed"
+    const { accessToken, refreshToken: newRefreshToken } =
+      await generateAccessAndRefreshToken(user._id);
+    (res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(200, { accessToken, refreshToken: newRefreshToken }),
+      "access token refreshed");
   } catch (error) {
-    throw new ApiError(401,error.message || 'Invalid refresh token')
+    throw new ApiError(401, error.message || "Invalid refresh token");
   }
-})
+});
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body || {};
+  const user = await User.findById(req.user?._id);
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+  if (!isPasswordCorrect) throw new ApiError(401, "Invalid Old Password");
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+  return res.status(200).json(200, {}, "Password changed successfully");
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  const user = req.user;
+  if (!user) throw new ApiError(400, "User not loggedin");
+  return res.status(200).json(200, user, "User Details fetched successfully");
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+  if (!fullName || !email) throw new ApiError(400, "All fields are required");
+  const user = User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        fullName,
+        email,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(200, user, "Account details changed successfully");
+});
+
+const updateAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.files.path;
+  if (!avatarLocalPath) throw new ApiError(400, "File not found");
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar.url) throw new ApiError(400, "Failed to upload avatar image on cloudinary");
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password");
+
+  return res.status(200).json(200, {}, "Avatar Image changed successfully");
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.files.path;
+  if (!coverImageLocalPath) throw new ApiError(400, "File not found");
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!coverImage.url)
+    throw new ApiError(400, "Failed to upload cover image on cloudinary");
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password");
+    return res.status(200).json(200, {}, "Cover Image changed successfully");
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changePassword,
+  getCurrentUser,
+  updateAccountDetails,
+  updateAvatar,
+  updateUserCoverImage
+};
