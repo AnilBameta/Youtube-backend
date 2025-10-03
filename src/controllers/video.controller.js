@@ -63,12 +63,12 @@ const getVideoList = asyncHandler(async (req, res) => {
 
 const deleteVideo = asyncHandler(async (req, res) => {
   const { id } = req.query;
-  if(!id) throw new ApiError(400, 'video Id not found');
+  if(!id) throw new ApiError(404, 'video Id is required');
   const video = await Video.findById(id);
   if(!video) throw new ApiError(400, "Please enter valid video Id");
   if(!video.owner.equals(req.user?._id))
-     throw new ApiError(400,"You are not allowed to delete the video");
-    await Video.findByIdAndDelete(id);
+     throw new ApiError(403,"You are not allowed to delete the video");
+    await video.deleteOne();
     return res
     .status(200)
     .json(new ApiResponse(200, {}, "Video deleted successfully"));
