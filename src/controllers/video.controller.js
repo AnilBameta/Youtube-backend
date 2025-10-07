@@ -9,7 +9,7 @@ import { User } from "../models/user.models.js";
 const addVideo = asyncHandler(async (req, res) => {
   const { title, description } = req.body;
 
-  const user = await User.findOne(req._id).select("-password -refreshToken");
+  const user = await User.findOne(req.user?._id).select("-password -refreshToken");
 
   if (!title || !description) throw new ApiError(400, "field cannot be empty");
 
@@ -46,6 +46,13 @@ const addVideo = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, video, "Video uploaded successfully"));
+});
+
+const getAllVideos = asyncHandler(async (req,res) => {
+  const videos = await Video.find();
+  return res
+  .status(200)
+  .json(new ApiResponse(200, videos, "Videos fetched successfully"))
 });
 
 const getVideoList = asyncHandler(async (req, res) => {
@@ -108,4 +115,4 @@ const updateViews = asyncHandler(async (req, res) => {
     );
 });
 
-export { addVideo, getVideoList, deleteVideo, updateVideoDetails, updateViews };
+export { addVideo, getVideoList, deleteVideo, updateVideoDetails, updateViews, getAllVideos };
