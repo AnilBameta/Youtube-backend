@@ -1,14 +1,24 @@
 import { Router } from "express";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import { addVideo, deleteVideo, getVideoList, updateVideoDetails, updateViews } from "../controllers/video.controller.js";
+import {
+  addVideo,
+  deleteVideo,
+  getAllVideos,
+  getVideoList,
+  updateVideoDetails,
+  updateViews,
+} from "../controllers/video.controller.js";
 
 const router = Router();
 
 router.route("/update-video-views/:id").put(updateViews);
+router.route("/all-videos").get(getAllVideos);
 
 //protected routes
-router.route("/add-video").post(verifyJwt,  upload.fields([
+router.route("/add-video").post(
+  verifyJwt,
+  upload.fields([
     {
       name: "videoFile",
       maxCount: 1,
@@ -17,15 +27,14 @@ router.route("/add-video").post(verifyJwt,  upload.fields([
       name: "thumbnail",
       maxCount: 1,
     },
-  ]), addVideo);
+  ]),
+  addVideo
+);
 
-router.route("/video-list").get(verifyJwt,getVideoList);
+router.route("/video-list").get(verifyJwt, getVideoList);
 
-router.route("/delete-video").delete(verifyJwt,deleteVideo);
+router.route("/delete-video").delete(verifyJwt, deleteVideo);
 
-router.route("/update-video-details/:id").patch(verifyJwt,updateVideoDetails);
+router.route("/update-video-details/:id").patch(verifyJwt, updateVideoDetails);
 
-
-
-
-  export default router;
+export default router;
