@@ -15,6 +15,11 @@ const likeSchema = new Schema(
       ref: "User",
       required: true,
     },
+    type: {
+      type: String,
+      enum: ["video", "comment"],
+      required: true,
+    },
   },
   {
     timestamps: true,
